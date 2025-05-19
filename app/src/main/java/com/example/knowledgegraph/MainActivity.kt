@@ -21,26 +21,39 @@ class MainActivity : ComponentActivity() {
             KnowledgeGraphTheme {
                 val navController = rememberNavController()
                 val context = applicationContext
-                val passwordSet = produceState(initialValue = false) {
-                    value = DataStoreManager.isPasswordSet(context)
+
+                val isUserRegistered = produceState(initialValue = false) {
+                    value = DataStoreManager.isUserRegistered(context)
                 }
 
-                val startDestination = if (passwordSet.value) "login" else "create_password"
+                val startDestination = if (isUserRegistered.value) "login" else "signup"
 
                 NavHost(navController = navController, startDestination = startDestination) {
-                    composable("create_password") {
-                        CreatePasswordScreen(
-                            onPasswordSet = {
-                                navController.navigate("login") {
-                                    popUpTo("create_password") { inclusive = true }
-                                }
+                    composable("signup") {
+                        SignUpScreen(onSignUpComplete = {
+                            navController.navigate("login") {
+                                popUpTo("signup") { inclusive = true }
+                            }
+                        })
+                    }
+                    composable("login") {
+                        LoginScreen(
+                            onLoginSuccess = { userName ->
+                                navController.navigate("home/$userName")
+                            },
+                            onForgotPassword = {
+                                navController.navigate("forgot_password")
                             }
                         )
                     }
-                    composable("login") {
-                        LoginScreen(onLoginSuccess = { userName ->
-                            navController.navigate("home/$userName")
-                        })
+                    composable("forgot_password") {
+                        ForgotPasswordScreen(
+                            onPasswordReset = {
+                                navController.navigate("login") {
+                                    popUpTo("forgot_password") { inclusive = true }
+                                }
+                            }
+                        )
                     }
                     composable(
                         route = "home/{userName}",

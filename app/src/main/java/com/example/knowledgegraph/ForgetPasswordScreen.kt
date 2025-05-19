@@ -8,35 +8,33 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
-fun CreatePasswordScreen(onPasswordSet: () -> Unit) {
+fun ForgotPasswordScreen(onPasswordReset: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var password by remember { mutableStateOf("") }
-    var confirm by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
-
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
         Text(
-            text = "Create a new password",
+            text = "Reset Your Password",
             style = MaterialTheme.typography.headlineSmall
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         TextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
+            value = newPassword,
+            onValueChange = { newPassword = it },
+            label = { Text("New Password") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -44,9 +42,9 @@ fun CreatePasswordScreen(onPasswordSet: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         TextField(
-            value = confirm,
-            onValueChange = { confirm = it },
-            label = { Text("Confirm Password") },
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it },
+            label = { Text("Confirm New Password") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -55,10 +53,15 @@ fun CreatePasswordScreen(onPasswordSet: () -> Unit) {
 
         Button(
             onClick = {
-                if (password == confirm && password.isNotBlank()) {
+                if (newPassword == confirmPassword && newPassword.isNotBlank()) {
                     coroutineScope.launch {
-                        DataStoreManager.savePassword(context, password)
-                        onPasswordSet()
+                        val (username, _) = DataStoreManager.getCredential(context)
+                        if (!username.isNullOrEmpty()) {
+                            DataStoreManager.saveCredential(context, username, newPassword)
+                            onPasswordReset()
+                        } else {
+                            error = "No registered user found."
+                        }
                     }
                 } else {
                     error = "Passwords do not match or are empty."
@@ -66,7 +69,7 @@ fun CreatePasswordScreen(onPasswordSet: () -> Unit) {
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Set Password")
+            Text("Reset Password")
         }
 
         if (error.isNotEmpty()) {
