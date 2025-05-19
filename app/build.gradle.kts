@@ -52,6 +52,13 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
+//    implementation("com.google.api-client:google-api-client-android:1.34.1")
+//    implementation("com.google.oauth-client:google-oauth-client-jetty:1.34.1")
+//    implementation("com.google.http-client:google-http-client-gson:1.41.0")
+//    implementation("com.google.api-client:google-api-client-gson:1.34.1")
+//    implementation("com.google.apis:google-api-services-calendar:v3-rev305-1.25.0")
+
+
 
     implementation(libs.androidx.ui.text)
     testImplementation(libs.junit)

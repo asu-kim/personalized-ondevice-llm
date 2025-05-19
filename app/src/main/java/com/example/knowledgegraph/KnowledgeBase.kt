@@ -1,58 +1,100 @@
 package com.example.knowledgegraph
-// 1000398288919-vvmvp4lav37a7u0d6168orsg45mr4a8f.apps.googleusercontent.com
-import android.graphics.Paint
+
+import android.content.Context
+import android.provider.CalendarContract
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-//import androidx.compose.ui.graphics.drawscope.DrawScope
-//import androidx.compose.ui.graphics.drawscope.drawContext
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.drawText
-import android.util.Log
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-
-//keyboard
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
-
-//for calendar
-import android.content.Context
-import android.provider.CalendarContract
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.drawText
 import java.util.*
-import androidx.compose.ui.platform.LocalContext
-
+import java.io.File
+import java.io.FileOutputStream
 
 data class KnowledgeTriple(val subject: String, val predicate: String, val obj: String)
 
+fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName: String = "Knowledge_graph.csv") {
+    val csvHeader = "Subject,Predicate,Object"
+    val csvBody = triples.joinToString("\n"){"\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\""}
+    val csvContent = csvHeader + "\n" + csvBody
 
+    val fileOutput = context.openFileOutput(fileName, Context.MODE_PRIVATE)
+    fileOutput.write(csvContent.toByteArray())
+    fileOutput.close()
+
+    Log.d("CSV", "Saved to ${File(context.filesDir, fileName).absolutePath}")
+}
+
+
+fun logAvailableCalendars(context: Context) {
+    val projection = arrayOf(
+        CalendarContract.Calendars._ID,
+        CalendarContract.Calendars.NAME,
+        CalendarContract.Calendars.ACCOUNT_NAME,
+        CalendarContract.Calendars.CALENDAR_DISPLAY_NAME
+    )
+
+    val cursor = context.contentResolver.query(
+        CalendarContract.Calendars.CONTENT_URI,
+        projection,
+        null,
+        null,
+        null
+    )
+
+    cursor?.use {
+        val idIndex = it.getColumnIndex(CalendarContract.Calendars._ID)
+        val nameIndex = it.getColumnIndex(CalendarContract.Calendars.NAME)
+        val accountIndex = it.getColumnIndex(CalendarContract.Calendars.ACCOUNT_NAME)
+        val displayNameIndex = it.getColumnIndex(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
+
+        while (it.moveToNext()) {
+            val id = it.getLong(idIndex)
+            val name = it.getString(nameIndex)
+            val account = it.getString(accountIndex)
+            val displayName = it.getString(displayNameIndex)
+            Log.d("CalendarInfo", "ID: $id, Name: $name, Account: $account, Display Name: $displayName")
+        }
+    }
+}
 
 fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
     val triples = mutableListOf<KnowledgeTriple>()
     val projection = arrayOf(
         CalendarContract.Events.TITLE,
         CalendarContract.Events.DTSTART,
-        CalendarContract.Events.EVENT_LOCATION
+        CalendarContract.Events.EVENT_LOCATION,
+        CalendarContract.Events.CALENDAR_ID
     )
+
+    // Optional: Replace with your actual Google account calendar ID or account name
+//    val selection = "${CalendarContract.Events.ACCOUNT_NAME} = ?"
+//    val selectionArgs = arrayOf("asu.kim.2024@gmail.com")
+    val selection = "${CalendarContract.Events.CALENDAR_ID} = ?"
+    val selectionArgs = arrayOf("4")
 
     val cursor = context.contentResolver.query(
         CalendarContract.Events.CONTENT_URI,
         projection,
-        null,
-        null,
+        selection,
+        selectionArgs,
         "${CalendarContract.Events.DTSTART} DESC"
     )
 
@@ -75,86 +117,38 @@ fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
         }
     }
 
-    if (triples.isEmpty()) {
-        Log.w("CalendarDebug", " No events found in the calendar.")
-    }
-
     return triples
 }
 
-
 @Composable
-fun KnowledgeBase(){
-    var subject by remember { mutableStateOf("")}
+fun KnowledgeBase() {
+    var subject by remember { mutableStateOf("") }
     var predicate by remember { mutableStateOf("") }
-    var obj by remember { mutableStateOf("")}
-    val keyboardController = LocalSoftwareKeyboardController.current
+    var obj by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
-//    We need to store this triple, creating a val
-    val knowledgeGraph = remember { mutableStateListOf<KnowledgeTriple>()}
-//
+    val knowledgeGraph = remember { mutableStateListOf<KnowledgeTriple>() }
     val context = LocalContext.current
     val calendarTriples = remember { mutableStateListOf<KnowledgeTriple>() }
 
-// Extract events and populate knowledgeGraph once
     LaunchedEffect(Unit) {
+        logAvailableCalendars(context) // Log all calendars
+
         val fromCalendar = getCalendarTriples(context)
         calendarTriples.clear()
         calendarTriples.addAll(fromCalendar)
 
-        // Add only new items to knowledgeGraph
-        fromCalendar.forEach {
-            if (!knowledgeGraph.contains(it)) {
-                knowledgeGraph.add(it)
-            }
-        }
+        // Only add distinct subjects to avoid drawing the same subject node twice
+        val distinctTriples = fromCalendar.distinctBy { it.subject }
+        knowledgeGraph.clear()
+        knowledgeGraph.addAll(distinctTriples)
+        saveTriplesToCSV(context, knowledgeGraph)
+
     }
-    // storing the value
-    Column(modifier = Modifier.padding(16.dp)){
-//        TextField(value = subject, onValueChange = { subject = it}, label = {Text("Subject")})
-        TextField(
-            value = subject,
-            onValueChange = { subject = it },
-            label = { Text("Subject") },
-            singleLine = true,
-            trailingIcon = {
-                IconButton(onClick = {
-                    focusManager.clearFocus()
-                }) {
-                    Icon(Icons.Default.Check, contentDescription = "Done")
-                }
-            }
-        )
-//        TextField(value = predicate, onValueChange = { predicate = it }, label = {Text("Predicate")})
-        TextField(
-            value = predicate,
-            onValueChange = { predicate = it },
-            label = { Text("Predicate") },
-            singleLine = true,
-            trailingIcon = {
-                IconButton(onClick = {
-                    focusManager.clearFocus()
-                }) {
-                    Icon(Icons.Default.Check, contentDescription = "Done")
-                }
-            }
-        )
-        TextField(
-            value = obj,
-            onValueChange = { obj = it },
-            label = { Text("Object") },
-            singleLine = true,
-            trailingIcon = {
-                IconButton(onClick = {
-                    focusManager.clearFocus()
-                }) {
-                    Icon(Icons.Default.Check, contentDescription = "Done")
-                }
-            }
-        )
+
+    Column(modifier = Modifier.padding(16.dp)) {
         Spacer(modifier = Modifier.height(16.dp))
-//        adding this triple to the list
+
         if (knowledgeGraph.isNotEmpty()) {
             Text("Knowledge Graph:", style = MaterialTheme.typography.titleMedium)
 
@@ -168,30 +162,32 @@ fun KnowledgeBase(){
             }
         }
     }
-
 }
-
 
 @Composable
 fun KnowledgeGraph(triples: List<KnowledgeTriple>) {
     val textMeasurer = rememberTextMeasurer()
+    val nodeHeight = 400f
+    val canvasHeight = remember(triples) { (triples.size * nodeHeight).dp + 300.dp }
 
-    // Fixed canvas height to show ~3-4 triples safely
-    val canvasHeight = 1200.dp
+    val safeCanvasHeight = if (canvasHeight > 5000.dp) 5000.dp else canvasHeight
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(canvasHeight)
+            .heightIn(min = 400.dp, max = safeCanvasHeight)
+            .verticalScroll(rememberScrollState())
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier
+            .fillMaxWidth()
+            .height(safeCanvasHeight)
+        ) {
             val nodeRadius = 100f
             val spacing = 300f
             val startX = 200f
             var currentY = 300f
 
-            val maxTriplesToDraw = 3 // Avoid overflow
-            triples.take(maxTriplesToDraw).forEach { triple ->
+            for (triple in triples) {
                 val subjectOffset = Offset(startX, currentY)
                 val objectOffset = Offset(startX + spacing, currentY)
 
@@ -206,94 +202,26 @@ fun KnowledgeGraph(triples: List<KnowledgeTriple>) {
                 )
 
                 drawText(
-                    textMeasurer = textMeasurer,
+                    textMeasurer,
                     text = triple.subject,
                     topLeft = Offset(subjectOffset.x - 50f, subjectOffset.y - 50f),
                     style = TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 )
-
                 drawText(
-                    textMeasurer = textMeasurer,
+                    textMeasurer,
                     text = triple.obj,
                     topLeft = Offset(objectOffset.x - 50f, objectOffset.y - 50f),
                     style = TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 )
-
                 drawText(
-                    textMeasurer = textMeasurer,
+                    textMeasurer,
                     text = triple.predicate,
                     topLeft = Offset(subjectOffset.x + 150f, subjectOffset.y - 50f),
                     style = TextStyle(color = Color.Gray, fontSize = 8.sp)
                 )
 
-                currentY += 400f
+                currentY += nodeHeight
             }
         }
     }
 }
-
-//@Composable
-//fun KnowledgeGraph(triples: List<KnowledgeTriple>) {
-//    val textMeasurer = rememberTextMeasurer()
-//    val nodeHeight = 400f
-//    val canvasHeight = remember(triples) { (triples.size * nodeHeight).dp + 300.dp }
-//
-//    // Cap max height to a safe value (optional)
-//    val safeCanvasHeight = if (canvasHeight > 5000.dp) 5000.dp else canvasHeight
-//
-//    Box(
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .heightIn(min = 400.dp, max = safeCanvasHeight)
-//            .verticalScroll(rememberScrollState())
-//    ) {
-//        Canvas(modifier = Modifier
-//            .fillMaxWidth()
-//            .height(safeCanvasHeight)
-//        ) {
-//            val nodeRadius = 100f
-//            val spacing = 300f
-//            val startX = 200f
-//            var currentY = 300f
-//
-//            for (triple in triples) {
-//                val subjectOffset = Offset(startX, currentY)
-//                val objectOffset = Offset(startX + spacing, currentY)
-//
-//                drawCircle(Color.Yellow, radius = nodeRadius, center = subjectOffset)
-//                drawCircle(Color.Cyan, radius = nodeRadius, center = objectOffset)
-//
-//                drawLine(
-//                    color = Color.Black,
-//                    start = subjectOffset + Offset(100f, 0f),
-//                    end = objectOffset - Offset(100f, 0f),
-//                    strokeWidth = 4f
-//                )
-//
-//                drawText(
-//                    textMeasurer = textMeasurer,
-//                    text = triple.subject,
-//                    topLeft = Offset(subjectOffset.x - 50f, subjectOffset.y - 50f),
-//                    style = TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-//                )
-//
-//                drawText(
-//                    textMeasurer = textMeasurer,
-//                    text = triple.obj,
-//                    topLeft = Offset(objectOffset.x - 50f, objectOffset.y - 50f),
-//                    style = TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-//                )
-//
-//                drawText(
-//                    textMeasurer = textMeasurer,
-//                    text = triple.predicate,
-//                    topLeft = Offset(subjectOffset.x + 150f, subjectOffset.y - 50f),
-//                    style = TextStyle(color = Color.Gray, fontSize = 8.sp)
-//                )
-//
-//                currentY += nodeHeight
-//            }
-//        }
-//    }
-//}
-
