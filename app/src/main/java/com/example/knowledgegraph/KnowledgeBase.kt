@@ -93,8 +93,8 @@ fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
     val cursor = context.contentResolver.query(
         CalendarContract.Events.CONTENT_URI,
         projection,
-        selection,
-        selectionArgs,
+        null,
+        null,
         "${CalendarContract.Events.DTSTART} DESC"
     )
 
@@ -140,8 +140,8 @@ fun KnowledgeBase() {
 
         // Only add distinct subjects to avoid drawing the same subject node twice
         val distinctTriples = fromCalendar.distinctBy { it.subject }
-        knowledgeGraph.clear()
-        knowledgeGraph.addAll(distinctTriples)
+//        knowledgeGraph.clear()
+        knowledgeGraph.addAll(fromCalendar)
         saveTriplesToCSV(context, knowledgeGraph)
 
     }
@@ -167,10 +167,12 @@ fun KnowledgeBase() {
 @Composable
 fun KnowledgeGraph(triples: List<KnowledgeTriple>) {
     val textMeasurer = rememberTextMeasurer()
-    val nodeHeight = 400f
-    val canvasHeight = remember(triples) { (triples.size * nodeHeight).dp + 300.dp }
+    val grouped = triples.groupBy { it.subject }
 
-    val safeCanvasHeight = if (canvasHeight > 5000.dp) 5000.dp else canvasHeight
+    val rowHeight = 100f
+    val maxObjects = grouped.maxOfOrNull { it.value.size } ?: 1
+    val canvasHeightDp = ((grouped.size * (rowHeight * (maxObjects + 1))) + 200).dp
+    val safeCanvasHeight = if (canvasHeightDp > 8000.dp) 8000.dp else canvasHeightDp
 
     Box(
         modifier = Modifier
@@ -182,45 +184,52 @@ fun KnowledgeGraph(triples: List<KnowledgeTriple>) {
             .fillMaxWidth()
             .height(safeCanvasHeight)
         ) {
-            val nodeRadius = 100f
-            val spacing = 300f
+            val nodeRadius = 50f
+            val spacing = 350f
             val startX = 200f
-            var currentY = 300f
+            var currentY = 200f
 
-            for (triple in triples) {
+            for ((subject, group) in grouped) {
                 val subjectOffset = Offset(startX, currentY)
-                val objectOffset = Offset(startX + spacing, currentY)
 
-                drawCircle(Color.Yellow, radius = nodeRadius, center = subjectOffset)
-                drawCircle(Color.Cyan, radius = nodeRadius, center = objectOffset)
-
-                drawLine(
-                    color = Color.Black,
-                    start = subjectOffset + Offset(100f, 0f),
-                    end = objectOffset - Offset(100f, 0f),
-                    strokeWidth = 4f
-                )
+                drawCircle(Color.Yellow, nodeRadius, subjectOffset)
 
                 drawText(
                     textMeasurer,
-                    text = triple.subject,
-                    topLeft = Offset(subjectOffset.x - 50f, subjectOffset.y - 50f),
-                    style = TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                )
-                drawText(
-                    textMeasurer,
-                    text = triple.obj,
-                    topLeft = Offset(objectOffset.x - 50f, objectOffset.y - 50f),
-                    style = TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                )
-                drawText(
-                    textMeasurer,
-                    text = triple.predicate,
-                    topLeft = Offset(subjectOffset.x + 150f, subjectOffset.y - 50f),
-                    style = TextStyle(color = Color.Gray, fontSize = 8.sp)
+                    text = subject,
+                    topLeft = subjectOffset - Offset(40f, 60f),
+                    style = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 )
 
-                currentY += nodeHeight
+                group.forEachIndexed { index, triple ->
+                    val objectY = currentY + index * rowHeight
+                    val objectOffset = Offset(startX + spacing, objectY)
+
+                    drawCircle(Color.Cyan, nodeRadius, objectOffset)
+
+                    drawLine(
+                        color = Color.Black,
+                        start = subjectOffset + Offset(50f, 0f),
+                        end = objectOffset - Offset(50f, 0f),
+                        strokeWidth = 3f
+                    )
+
+                    drawText(
+                        textMeasurer,
+                        text = triple.obj,
+                        topLeft = objectOffset - Offset(40f, 40f),
+                        style = TextStyle(fontSize = 8.sp, fontWeight = FontWeight.Medium, color = Color.Black)
+                    )
+
+                    drawText(
+                        textMeasurer,
+                        text = triple.predicate,
+                        topLeft = Offset(subjectOffset.x + 150f, objectY - 50f),
+                        style = TextStyle(fontSize = 8.sp, color = Color.DarkGray)
+                    )
+                }
+
+                currentY += (group.size + 1) * rowHeight
             }
         }
     }
