@@ -27,6 +27,7 @@ import androidx.compose.ui.text.drawText
 import java.util.*
 import java.io.File
 import java.io.FileOutputStream
+import android.os.Environment
 
 data class KnowledgeTriple(val subject: String, val predicate: String, val obj: String)
 
@@ -35,11 +36,18 @@ fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName:
     val csvBody = triples.joinToString("\n"){"\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\""}
     val csvContent = csvHeader + "\n" + csvBody
 
-    val fileOutput = context.openFileOutput(fileName, Context.MODE_PRIVATE)
-    fileOutput.write(csvContent.toByteArray())
-    fileOutput.close()
+//    val fileOutput = context.openFileOutput(fileName, Context.MODE_PRIVATE)
+//    fileOutput.write(csvContent.toByteArray())
+//    fileOutput.close()
+//
+//    Log.d("CSV", "Saved to ${File(context.filesDir, fileName).absolutePath}")
 
-    Log.d("CSV", "Saved to ${File(context.filesDir, fileName).absolutePath}")
+    val sharedDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+    val sharedFile = File(sharedDir, fileName)
+    sharedFile.writeText(csvContent)
+
+    Log.d("CSV", "Saved to: ${sharedFile.absolutePath}")
+
 }
 
 
@@ -158,7 +166,7 @@ fun KnowledgeBase() {
                     .verticalScroll(rememberScrollState())
                     .heightIn(min = 400.dp)
             ) {
-                KnowledgeGraph(triples = knowledgeGraph)
+                //KnowledgeGraph(triples = knowledgeGraph)
             }
         }
     }
