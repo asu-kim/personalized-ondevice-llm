@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <permission
+        android:name="ai.mlc.kg.READ_KG"
+        android:protectionLevel="normal" />
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -12,7 +15,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KnowledgeGraph"
         tools:targetApi="31">
-        <activity
+    <provider
+            android:name=".KGContentProvider"
+            android:authorities="com.example.knowledgegraph.kgprovider"
+            android:exported="true"
+            android:grantUriPermissions="true"/>
+    <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"

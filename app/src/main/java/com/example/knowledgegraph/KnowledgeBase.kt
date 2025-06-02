@@ -29,25 +29,27 @@ import java.io.File
 import java.io.FileOutputStream
 import android.os.Environment
 
+import android.content.Intent
+import android.net.Uri
+
 data class KnowledgeTriple(val subject: String, val predicate: String, val obj: String)
 
 fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName: String = "Knowledge_graph.csv") {
     val csvHeader = "Subject,Predicate,Object"
-    val csvBody = triples.joinToString("\n"){"\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\""}
-    val csvContent = csvHeader + "\n" + csvBody
+    val csvBody = triples.joinToString("\n") { "\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\"" }
+    val csvContent = "$csvHeader\n$csvBody"
 
-//    val fileOutput = context.openFileOutput(fileName, Context.MODE_PRIVATE)
-//    fileOutput.write(csvContent.toByteArray())
-//    fileOutput.close()
-//
-//    Log.d("CSV", "Saved to ${File(context.filesDir, fileName).absolutePath}")
 
-    val sharedDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-    val sharedFile = File(sharedDir, fileName)
-    sharedFile.writeText(csvContent)
+    val file = File(context.getExternalFilesDir(null), fileName)
+    file.writeText(csvContent)
 
-    Log.d("CSV", "Saved to: ${sharedFile.absolutePath}")
+    Log.d("CSV", "Saved to: ${file.absolutePath}")
 
+    context.grantUriPermission(
+        "ai.mlc.mlcchat",  // MLC Chat package name
+        Uri.parse("content://com.example.knowledgegraph.kgprovider"),
+        Intent.FLAG_GRANT_READ_URI_PERMISSION
+    )
 }
 
 
