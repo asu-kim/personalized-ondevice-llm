@@ -45,11 +45,7 @@ fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName:
 
     Log.d("CSV", "Saved to: ${file.absolutePath}")
 
-    context.grantUriPermission(
-        "ai.mlc.mlcchat",  // MLC Chat package name
-        Uri.parse("content://com.example.knowledgegraph.kgprovider"),
-        Intent.FLAG_GRANT_READ_URI_PERMISSION
-    )
+
 }
 
 

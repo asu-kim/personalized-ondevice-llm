@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <permission
-        android:name="ai.mlc.kg.READ_KG"
+        android:name="ai.mlc.mlcchat.READ_KG"
         android:protectionLevel="normal" />
     <application
         android:allowBackup="true"
@@ -19,7 +19,8 @@
             android:name=".KGContentProvider"
             android:authorities="com.example.knowledgegraph.kgprovider"
             android:exported="true"
-            android:grantUriPermissions="true"/>
+            android:grantUriPermissions="true"
+            android:readPermission="ai.mlc.mlcchat.READ_KG"/>
     <activity
             android:name=".MainActivity"
             android:exported="true"
