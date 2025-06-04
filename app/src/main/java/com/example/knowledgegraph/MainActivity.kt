@@ -12,11 +12,18 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.knowledgegraph.ui.theme.KnowledgeGraphTheme
 import androidx.compose.runtime.produceState
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+//        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 100)
+//        }
         setContent {
             KnowledgeGraphTheme {
                 val navController = rememberNavController()

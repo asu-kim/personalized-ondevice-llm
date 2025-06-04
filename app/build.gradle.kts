@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
 }
 
 android {
@@ -38,6 +39,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        viewBinding = true
     }
 }
 
@@ -59,10 +61,13 @@ dependencies {
 //    implementation("com.google.http-client:google-http-client-gson:1.41.0")
 //    implementation("com.google.api-client:google-api-client-gson:1.34.1")
 //    implementation("com.google.apis:google-api-services-calendar:v3-rev305-1.25.0")
-
+    implementation ("com.google.android.gms:play-services-location:21.0.1")
 
 
     implementation(libs.androidx.ui.text)
+    implementation(libs.play.services.maps)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.constraintlayout)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

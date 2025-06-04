@@ -1,6 +1,10 @@
 package com.example.knowledgegraph
 
+import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.provider.CalendarContract
 import android.util.Log
 import androidx.compose.foundation.Canvas
@@ -28,9 +32,17 @@ import java.util.*
 import java.io.File
 import java.io.FileOutputStream
 import android.os.Environment
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+// for location coordinating
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import kotlinx.coroutines.delay
 
-import android.content.Intent
-import android.net.Uri
 
 data class KnowledgeTriple(val subject: String, val predicate: String, val obj: String)
 
@@ -90,7 +102,7 @@ fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
         CalendarContract.Events.CALENDAR_ID
     )
 
-    // Optional: Replace with your actual Google account calendar ID or account name
+    // Replace with your Google account calendar ID or account name
 //    val selection = "${CalendarContract.Events.ACCOUNT_NAME} = ?"
 //    val selectionArgs = arrayOf("asu.kim.2024@gmail.com")
     val selection = "${CalendarContract.Events.CALENDAR_ID} = ?"
@@ -116,14 +128,67 @@ fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
 
             if (!title.isNullOrBlank()) {
                 triples.add(KnowledgeTriple(title, "starts at", Date(startTime).toString()))
-                triples.add(KnowledgeTriple(title, "location", location))
+                if (!location.isNullOrBlank()) {
+                    triples.add(KnowledgeTriple(title, "location", location))
+                }
 
-                Log.d("CalendarDebug", "Event: \"$title\" at ${Date(startTime)} in $location")
+//                Log.d("CalendarDebug", "Event: \"$title\" at ${Date(startTime)} in $location")
             }
         }
     }
 
     return triples
+}
+
+@Composable
+fun GetCurrentLocationComposable(knowledgeGraph: SnapshotStateList<KnowledgeTriple>) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val fusedLocationClient = remember {
+        LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    // Keep track of last known address
+    val lastAddress = remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            if (activity != null) {
+                ActivityCompat.requestPermissions(
+                    activity,
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                    100
+                )
+            }
+            return@LaunchedEffect
+        }
+
+        while (true) {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                location?.let {
+                    val geocoder = Geocoder(context, Locale.getDefault())
+                    val addresses = geocoder.getFromLocation(it.latitude, it.longitude, 1)
+                    if (!addresses.isNullOrEmpty()) {
+                        val address = addresses[0].getAddressLine(0)
+                        val dateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+
+                        if (address != lastAddress.value) {
+                            lastAddress.value = address
+
+                            // Only add if it's different from last
+                            knowledgeGraph.add(KnowledgeTriple("User", "location", address))
+                            knowledgeGraph.add(KnowledgeTriple("User", "starts at", dateTime))
+                            saveTriplesToCSV(context, knowledgeGraph)
+                        }
+                    }
+                }
+            }
+
+            delay(15_000) // check every 15 seconds (or change as needed)
+        }
+    }
 }
 
 @Composable
@@ -138,6 +203,7 @@ fun KnowledgeBase() {
     val calendarTriples = remember { mutableStateListOf<KnowledgeTriple>() }
 
     LaunchedEffect(Unit) {
+        // debugging
         logAvailableCalendars(context) // Log all calendars
 
         val fromCalendar = getCalendarTriples(context)
@@ -151,12 +217,12 @@ fun KnowledgeBase() {
         saveTriplesToCSV(context, knowledgeGraph)
 
     }
-
+    GetCurrentLocationComposable(knowledgeGraph)
     Column(modifier = Modifier.padding(16.dp)) {
         Spacer(modifier = Modifier.height(16.dp))
 
         if (knowledgeGraph.isNotEmpty()) {
-            Text("Knowledge Graph:", style = MaterialTheme.typography.titleMedium)
+            //Text("Knowledge Graph:", style = MaterialTheme.typography.titleMedium)
 
             Box(
                 modifier = Modifier
