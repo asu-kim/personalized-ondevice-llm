@@ -41,23 +41,41 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 
 
 data class KnowledgeTriple(val subject: String, val predicate: String, val obj: String)
 
+//fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName: String = "Knowledge_graph.csv") {
+//    val csvHeader = "Subject,Predicate,Object"
+//    val csvBody = triples.joinToString("\n") { "\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\"" }
+//    val csvContent = "$csvHeader\n$csvBody"
+//
+//
+//    val file = File(context.getExternalFilesDir(null), fileName)
+//    file.writeText(csvContent)
+//
+//    Log.d("CSV", "Saved to: ${file.absolutePath}")
+//
+//
+//}
 fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName: String = "Knowledge_graph.csv") {
-    val csvHeader = "Subject,Predicate,Object"
-    val csvBody = triples.joinToString("\n") { "\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\"" }
-    val csvContent = "$csvHeader\n$csvBody"
-
-
     val file = File(context.getExternalFilesDir(null), fileName)
-    file.writeText(csvContent)
+    val existingLines = if (file.exists()) file.readLines().toMutableSet() else mutableSetOf()
 
-    Log.d("CSV", "Saved to: ${file.absolutePath}")
+    val newLines = triples.map { "\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\"" }
+        .filterNot { existingLines.contains(it) }
 
+    if (newLines.isEmpty()) return
 
+    val needsHeader = existingLines.isEmpty()
+    file.appendText(buildString {
+        if (needsHeader) append("Subject,Predicate,Object\n")
+        newLines.forEach { append("$it\n") }
+    })
+
+    Log.d("CSV", "Appended ${newLines.size} new triples to: ${file.absolutePath}")
 }
 
 
@@ -140,71 +158,24 @@ fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
     return triples
 }
 
-@Composable
-fun GetCurrentLocationComposable(knowledgeGraph: SnapshotStateList<KnowledgeTriple>) {
-    val context = LocalContext.current
-    val activity = context as? Activity
-    val fusedLocationClient = remember {
-        LocationServices.getFusedLocationProviderClient(context)
-    }
 
-    // Keep track of last known address
-    val lastAddress = remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            if (activity != null) {
-                ActivityCompat.requestPermissions(
-                    activity,
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                    100
-                )
-            }
-            return@LaunchedEffect
-        }
-
-        while (true) {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                location?.let {
-                    val geocoder = Geocoder(context, Locale.getDefault())
-                    val addresses = geocoder.getFromLocation(it.latitude, it.longitude, 1)
-                    if (!addresses.isNullOrEmpty()) {
-                        val address = addresses[0].getAddressLine(0)
-                        val dateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-
-                        if (address != lastAddress.value) {
-                            lastAddress.value = address
-
-                            // Only add if it's different from last
-                            knowledgeGraph.add(KnowledgeTriple("User", "location", address))
-                            knowledgeGraph.add(KnowledgeTriple("User", "starts at", dateTime))
-                            saveTriplesToCSV(context, knowledgeGraph)
-                        }
-                    }
-                }
-            }
-
-            delay(15_000) // check every 15 seconds (or change as needed)
-        }
-    }
-}
 
 @Composable
-fun KnowledgeBase() {
+fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
     var subject by remember { mutableStateOf("") }
     var predicate by remember { mutableStateOf("") }
     var obj by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
-
+    val lastUpdateDate  = remember {mutableStateOf<String?>(null)}
+    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     val knowledgeGraph = remember { mutableStateListOf<KnowledgeTriple>() }
     val context = LocalContext.current
     val calendarTriples = remember { mutableStateListOf<KnowledgeTriple>() }
-
+    val cacheTriples = remember { mutableStateListOf<KnowledgeTriple>()}
+    val locationViewModel: LocationViewModel = viewModel()
     LaunchedEffect(Unit) {
         // debugging
-        logAvailableCalendars(context) // Log all calendars
+        logAvailableCalendars(context)
 
         val fromCalendar = getCalendarTriples(context)
         calendarTriples.clear()
@@ -212,12 +183,22 @@ fun KnowledgeBase() {
 
         // Only add distinct subjects to avoid drawing the same subject node twice
         val distinctTriples = fromCalendar.distinctBy { it.subject }
-//        knowledgeGraph.clear()
-        knowledgeGraph.addAll(fromCalendar)
-        saveTriplesToCSV(context, knowledgeGraph)
-
+        //knowledgeGraph.clear()
+        //Log.d("CalendarDebug", "Event: \"$title\" at ${Date(startTime)} in $location")
+        Log.d ("DateDebug", "LastDate: ${lastUpdateDate.value}, Today: $today")
+        if (lastUpdateDate.value != today) {
+            cacheTriples.clear()
+            cacheTriples.addAll(calendarTriples)
+            knowledgeGraph.addAll(fromCalendar)
+            knowledgeGraph.addAll(locationViewModel.locationTriples)
+            saveTriplesToCSV(context, knowledgeGraph)
+            lastUpdateDate.value = today
+        } else {
+            knowledgeGraph.addAll(cacheTriples)
+            knowledgeGraph.addAll(locationViewModel.locationTriples)
+        }
     }
-    GetCurrentLocationComposable(knowledgeGraph)
+    //GetCurrentLocationComposable(knowledgeGraph)
     Column(modifier = Modifier.padding(16.dp)) {
         Spacer(modifier = Modifier.height(16.dp))
 

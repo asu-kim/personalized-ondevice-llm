@@ -28,7 +28,7 @@ fun LoginScreen(
     Column(modifier = modifier
         .fillMaxSize()
         .padding(16.dp)) {
-
+        Spacer(modifier = Modifier.height(64.dp))
         Text(
             text = "Login",
             style = MaterialTheme.typography.headlineSmall
