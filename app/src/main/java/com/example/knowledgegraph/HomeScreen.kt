@@ -7,40 +7,41 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+
 
 //for the app selections
 
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import android.content.Intent
-import android.net.Uri
-import android.provider.CalendarContract
-import android.util.Log
+
 import androidx.compose.runtime.LaunchedEffect
-import android.Manifest
+
 import android.app.Activity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
-import android.location.Geocoder
-import java.util.Locale
 
-data class AppInfo(
-    val name: String,
-    val packageName: String,
-    val icon: Drawable
-)
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun HomeScreen(name: String, navController: NavController) {
     val context = LocalContext.current
     val activity = context as? Activity
+    var statusMessage by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
+        val embeddingModel = EmbeddingModel(context)
+        withContext(Dispatchers.IO) {
+            val model = EmbeddingModel(context)
+            val result = model.generateEmbeddingsFromKG()
+            withContext(Dispatchers.Main) {
+                statusMessage = result
+            }
+        }
         if (
             activity != null &&
             ContextCompat.checkSelfPermission(
@@ -86,10 +87,16 @@ fun HomeScreen(name: String, navController: NavController) {
             text = "The Knowledge Graph is saved as a .csv file",
             style = MaterialTheme.typography.titleMedium
         )
-        Spacer(modifier = Modifier.height(16.dp))
-//        AppSelection()
+        Spacer(modifier = Modifier.height(64.dp))
+        if (statusMessage != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = statusMessage!!,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
 
-        //GetCurrentLocationComposable()
         // calling the knowledge base here
         KnowledgeBase()
     }
