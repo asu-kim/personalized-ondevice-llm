@@ -69,7 +69,13 @@ class EmbeddingModel(private val context: Context) {
             return "Embeddings already up-to-date."
         }
 
-        val lines = kgFile.readLines().filter { it.isNotBlank() }
+//        val lines = kgFile.readLines().filter { it.isNotBlank() }
+        val lines = kgFile.readLines()
+            .drop(1)
+            .filter { it.isNotBlank() }
+        if (lines.firstOrNull()?.contains("subject", ignoreCase = true) == true) {
+            Log.w("EmbeddingKG", "Header line detected and skipped.")
+        }
         var appendedCount = 0
         vecFile.writeText("") // Clear previous contents
 
@@ -86,7 +92,7 @@ class EmbeddingModel(private val context: Context) {
 
             if (embedding != null) {
                 val embeddingStr = embedding.joinToString(",")
-                vecFile.appendText("$embeddingStr\n")
+                vecFile.appendText("$embeddingStr\t$text\n")
                 appendedCount++
             }
         }
