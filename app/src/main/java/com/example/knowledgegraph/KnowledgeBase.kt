@@ -2,6 +2,7 @@ package com.example.knowledgegraph
 
 import android.Manifest
 import android.app.Activity
+import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Geocoder
@@ -111,54 +112,109 @@ fun logAvailableCalendars(context: Context) {
     }
 }
 
+//fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
+//    val triples = mutableListOf<KnowledgeTriple>()
+//    val projection = arrayOf(
+//        CalendarContract.Events.TITLE,
+//        CalendarContract.Events.DTSTART,
+//        CalendarContract.Events.EVENT_LOCATION,
+//        CalendarContract.Events.CALENDAR_ID
+//    )
+//
+//    // Replace with your Google account calendar ID or account name
+////    val selection = "${CalendarContract.Events.ACCOUNT_NAME} = ?"
+////    val selectionArgs = arrayOf("asu.kim.2024@gmail.com")
+//    val selection = "${CalendarContract.Events.CALENDAR_ID} = ?"
+//    val selectionArgs = arrayOf("4")
+//
+//    val cursor = context.contentResolver.query(
+//        CalendarContract.Events.CONTENT_URI,
+//        projection,
+//        null,
+//        null,
+//        "${CalendarContract.Events.DTSTART} DESC"
+//    )
+//
+//    cursor?.use {
+//        val titleIndex = it.getColumnIndex(CalendarContract.Events.TITLE)
+//        val timeIndex = it.getColumnIndex(CalendarContract.Events.DTSTART)
+//        val locationIndex = it.getColumnIndex(CalendarContract.Events.EVENT_LOCATION)
+//
+//        while (it.moveToNext()) {
+//            val title = it.getString(titleIndex)
+//            val startTime = it.getLong(timeIndex)
+//            val location = it.getString(locationIndex) ?: "unspecified"
+//
+//            if (!title.isNullOrBlank()) {
+//                triples.add(KnowledgeTriple(title, "starts at", Date(startTime).toString()))
+//                if (!location.isNullOrBlank()) {
+//                    triples.add(KnowledgeTriple(title, "location", location))
+//                }
+//
+////                Log.d("CalendarDebug", "Event: \"$title\" at ${Date(startTime)} in $location")
+//            }
+//        }
+//    }
+//
+//    return triples
+//}
+
 fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
     val triples = mutableListOf<KnowledgeTriple>()
+
     val projection = arrayOf(
-        CalendarContract.Events.TITLE,
-        CalendarContract.Events.DTSTART,
-        CalendarContract.Events.EVENT_LOCATION,
-        CalendarContract.Events.CALENDAR_ID
+        CalendarContract.Instances.TITLE,
+        CalendarContract.Instances.BEGIN,
+        CalendarContract.Instances.END,
+        CalendarContract.Instances.EVENT_LOCATION
     )
 
-    // Replace with your Google account calendar ID or account name
-//    val selection = "${CalendarContract.Events.ACCOUNT_NAME} = ?"
-//    val selectionArgs = arrayOf("asu.kim.2024@gmail.com")
-    val selection = "${CalendarContract.Events.CALENDAR_ID} = ?"
-    val selectionArgs = arrayOf("4")
+    val now = System.currentTimeMillis()
+    val oneYearFromNow = now + 365L * 24 * 60 * 60 * 1000 // 1 year ahead
 
+    val builder = CalendarContract.Instances.CONTENT_URI.buildUpon()
+    ContentUris.appendId(builder, now)
+    ContentUris.appendId(builder, oneYearFromNow)
+
+    val uri = builder.build()
     val cursor = context.contentResolver.query(
-        CalendarContract.Events.CONTENT_URI,
+        uri,
         projection,
         null,
         null,
-        "${CalendarContract.Events.DTSTART} DESC"
+        "${CalendarContract.Instances.BEGIN} ASC"
     )
 
     cursor?.use {
-        val titleIndex = it.getColumnIndex(CalendarContract.Events.TITLE)
-        val timeIndex = it.getColumnIndex(CalendarContract.Events.DTSTART)
-        val locationIndex = it.getColumnIndex(CalendarContract.Events.EVENT_LOCATION)
+        val titleIndex = it.getColumnIndex(CalendarContract.Instances.TITLE)
+        val startTimeIndex = it.getColumnIndex(CalendarContract.Instances.BEGIN)
+        val endTimeIndex = it.getColumnIndex(CalendarContract.Instances.END)
+        val locationIndex = it.getColumnIndex(CalendarContract.Instances.EVENT_LOCATION)
+
+        val isoFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
+        isoFormatter.timeZone = TimeZone.getDefault()
 
         while (it.moveToNext()) {
             val title = it.getString(titleIndex)
-            val startTime = it.getLong(timeIndex)
+            val startTime = it.getLong(startTimeIndex)
+            val endTime = it.getLong(endTimeIndex)
             val location = it.getString(locationIndex) ?: "unspecified"
+            val startIso = isoFormatter.format(Date(startTime))
+            val endIso = isoFormatter.format(Date(endTime))
+            val intervalIso = "$startIso/$endIso"
 
             if (!title.isNullOrBlank()) {
-                triples.add(KnowledgeTriple(title, "starts at", Date(startTime).toString()))
+                triples.add(KnowledgeTriple(title, "at", intervalIso))
                 if (!location.isNullOrBlank()) {
                     triples.add(KnowledgeTriple(title, "location", location))
                 }
-
-//                Log.d("CalendarDebug", "Event: \"$title\" at ${Date(startTime)} in $location")
             }
         }
     }
 
-    return triples
+    // --- Remove duplicates! ---
+    return triples.distinctBy { Triple(it.subject, it.predicate, it.obj) }
 }
-
-
 
 @Composable
 fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {

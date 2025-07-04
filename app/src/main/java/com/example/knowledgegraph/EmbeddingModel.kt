@@ -87,18 +87,33 @@ class EmbeddingModel(private val context: Context) {
             val predicate = parts[1].trim('"')
             val obj = parts.subList(2, parts.size).joinToString(" ").trim('"')
 
-            val text = "$subject $predicate $obj"
-            val embedding = getEmbedding(text)
-
+            //val text = "$subject $predicate $obj"
+            val rawText = "$subject $predicate $obj"
+            val normalizedText = normalizeText(rawText)  // ← normalize here
+            val embedding = getEmbedding(normalizedText) // ← use normalized version
+            //val embedding = getEmbedding(text)
             if (embedding != null) {
                 val embeddingStr = embedding.joinToString(",")
-                vecFile.appendText("$embeddingStr\t$text\n")
+                vecFile.appendText("$embeddingStr\t$rawText\n")  // keep rawText for context clarity
                 appendedCount++
             }
+//            if (embedding != null) {
+//                val embeddingStr = embedding.joinToString(",")
+//                vecFile.appendText("$embeddingStr\t$text\n")
+//                appendedCount++
+//            }
         }
 
         val message = "Generated $appendedCount embeddings to: ${vecFile.name}"
         Log.d("EmbeddingKG", message)
         return message
+    }
+    private fun normalizeText(text: String): String {
+        return text.lowercase()
+            .replace("-", " ")       // e.g., one-on-one → one on one
+            .replace("1-on-1", "one on one")
+            .replace("1 to 1", "one on one")
+            .replace(Regex("\\s+"), " ")  // collapse whitespace
+            .trim()
     }
 }
