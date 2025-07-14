@@ -42,6 +42,8 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
                         location?.let {
                             val geocoder = Geocoder(context, Locale.getDefault())
                             val addresses = geocoder.getFromLocation(it.latitude, it.longitude, 1)
+                            Log.d("LOCATION_LATLON", "Lat: ${it.latitude}, Lon: ${it.longitude}")
+                            Log.d("LATITUDE", "$addresses")
                             if (!addresses.isNullOrEmpty()) {
                                 val address = addresses[0].getAddressLine(0)
                                 val dateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
