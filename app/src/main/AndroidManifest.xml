@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET"/>
     <permission
         android:name="ai.mlc.mlcchat.READ_KG"
         android:protectionLevel="normal" />
@@ -19,7 +20,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KnowledgeGraph"
         tools:targetApi="31">
-
+        <meta-data
+            android:name="com.google.android.gms.auth.api.signin.DEFAULT_WEB_CLIENT_ID"
+            android:value="239743215971-kc85ps78hg90bbcmlfc6b46ohtkfg882.apps.googleusercontent.com" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
