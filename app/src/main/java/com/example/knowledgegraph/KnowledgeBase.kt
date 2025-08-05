@@ -35,6 +35,7 @@ import java.io.FileOutputStream
 import android.os.Environment
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+
 // for location coordinating
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -46,21 +47,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 
 
+
 data class KnowledgeTriple(val subject: String, val predicate: String, val obj: String)
 
-//fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName: String = "Knowledge_graph.csv") {
-//    val csvHeader = "Subject,Predicate,Object"
-//    val csvBody = triples.joinToString("\n") { "\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\"" }
-//    val csvContent = "$csvHeader\n$csvBody"
-//
-//
-//    val file = File(context.getExternalFilesDir(null), fileName)
-//    file.writeText(csvContent)
-//
-//    Log.d("CSV", "Saved to: ${file.absolutePath}")
-//
-//
-//}
+
 fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName: String = "Knowledge_graph.csv") {
     val file = File(context.getExternalFilesDir(null), fileName)
     val existingLines = if (file.exists()) file.readLines().toMutableSet() else mutableSetOf()
@@ -229,7 +219,25 @@ fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
     val calendarTriples = remember { mutableStateListOf<KnowledgeTriple>() }
     val cacheTriples = remember { mutableStateListOf<KnowledgeTriple>()}
     val locationViewModel: LocationViewModel = viewModel()
+//    val snippets by gmailViewModel.snippets.collectAsState()
+
     LaunchedEffect(Unit) {
+        val permissionGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!permissionGranted) {
+            (context as? Activity)?.let {
+                ActivityCompat.requestPermissions(
+                    it,
+                    arrayOf(Manifest.permission.READ_CALENDAR),
+                    102
+                )
+            }
+            return@LaunchedEffect
+        }
+
         // debugging
         logAvailableCalendars(context)
 
@@ -257,7 +265,14 @@ fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
     //GetCurrentLocationComposable(knowledgeGraph)
     Column(modifier = Modifier.padding(16.dp)) {
         Spacer(modifier = Modifier.height(16.dp))
-
+//        if (snippets.isNotEmpty()) {
+//            Text("📧 Gmail Snippets:", style = MaterialTheme.typography.titleMedium)
+//            Spacer(modifier = Modifier.height(8.dp))
+//            snippets.forEach {
+//                Text("- $it", style = MaterialTheme.typography.bodySmall)
+//                Spacer(modifier = Modifier.height(4.dp))
+//            }
+//        }
         if (knowledgeGraph.isNotEmpty()) {
             //Text("Knowledge Graph:", style = MaterialTheme.typography.titleMedium)
 
@@ -272,6 +287,7 @@ fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
         }
     }
 }
+
 
 @Composable
 fun KnowledgeGraph(triples: List<KnowledgeTriple>) {

@@ -3,7 +3,10 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
+//    id("com.google.gms.google-services")
+
 }
+
 
 android {
     namespace = "com.example.knowledgegraph"
@@ -57,6 +60,8 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.0")
+//    implementation("com.google.android.gms:play-services-auth:21.0.0")
+//    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 //    implementation("com.google.api-client:google-api-client-android:1.34.1")
 //    implementation("com.google.oauth-client:google-oauth-client-jetty:1.34.1")
 //    implementation("com.google.http-client:google-http-client-gson:1.41.0")
@@ -76,4 +81,5 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
 }
