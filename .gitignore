@@ -14,3 +14,4 @@
 .cxx
 local.properties
 app/src/main/assets/all-minilm-l6-v2/model.onnx
+*.idea/
