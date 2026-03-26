@@ -67,7 +67,7 @@ fun SignUpScreen(onSignUpComplete: () -> Unit) {
                 if (username.isNotBlank() && password == confirm && password.isNotBlank()) {
                     coroutineScope.launch {
                         DataStoreManager.saveCredential(context, username, password)
-                        onSignUpComplete()  // ← Updated callback name
+                        onSignUpComplete()  
                     }
                 } else {
                     error = "Username and Passwords do not match or are empty."
