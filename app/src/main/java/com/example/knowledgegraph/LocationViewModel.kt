@@ -23,11 +23,15 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
 
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
     private var lastAddress: String? = null
+    private var currentStayId: String? = null
 
     private val _locationTriples = mutableStateListOf<KnowledgeTriple>()
     val locationTriples: SnapshotStateList<KnowledgeTriple> = _locationTriples
 
     init {
+        val sharedPrefs = getApplication<Application>().getSharedPreferences("location_prefs", Context.MODE_PRIVATE)
+        lastAddress = sharedPrefs.getString("last_location", null)
+        currentStayId = sharedPrefs.getString("current_stay_id", null)
         startLocationUpdates()
     }
 
@@ -42,32 +46,31 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
                         location?.let {
                             val geocoder = Geocoder(context, Locale.getDefault())
                             val addresses = geocoder.getFromLocation(it.latitude, it.longitude, 1)
-                            Log.d("LOCATION_LATLON", "Lat: ${it.latitude}, Lon: ${it.longitude}")
-                            Log.d("LATITUDE", "$addresses")
                             if (!addresses.isNullOrEmpty()) {
                                 val address = addresses[0].getAddressLine(0)
                                 val dateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
+                                val checkInTriples = listOf(
+                                    KnowledgeTriple("user", "located_at", address),
+                                    KnowledgeTriple(address, "last_seen_at", dateTime)
+                                )
+
+                                _locationTriples.clear()
+                                _locationTriples.addAll(checkInTriples)
+                                saveTriplesToCSV(context, checkInTriples)
+
                                 if (address != lastAddress) {
                                     lastAddress = address
-                                    _locationTriples.add(KnowledgeTriple("User", "location", address))
-                                    _locationTriples.add(KnowledgeTriple("User", "starts at", dateTime))
-
-                                   
-                                    saveTriplesToCSV(context, _locationTriples)
-
-                                 
                                     val sharedPrefs = context.getSharedPreferences("location_prefs", Context.MODE_PRIVATE)
                                     sharedPrefs.edit {
                                         putString("last_location", address)
-                                        putString("last_timestamp", dateTime)
                                     }
                                 }
                             }
                         }
                     }
                 }
-                delay(15_000) 
+                delay(30_000)
             }
         }
     }

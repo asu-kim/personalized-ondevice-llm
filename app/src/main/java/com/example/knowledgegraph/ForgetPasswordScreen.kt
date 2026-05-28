@@ -57,7 +57,7 @@ fun ForgotPasswordScreen(onPasswordReset: () -> Unit) {
                     coroutineScope.launch {
                         val (username, _) = DataStoreManager.getCredential(context)
                         if (!username.isNullOrEmpty()) {
-                            DataStoreManager.saveCredential(context, username, newPassword)
+                            DataStoreManager.savePassword(context, newPassword)
                             onPasswordReset()
                         } else {
                             error = "No registered user found."

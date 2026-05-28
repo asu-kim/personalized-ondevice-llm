@@ -20,13 +20,16 @@ fun SignUpScreen(onSignUpComplete: () -> Unit) {
     var confirm by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
+    var firstName by remember { mutableStateOf("") }
+    var role by remember { mutableStateOf("") }
+    var timezone by remember { mutableStateOf("") }
 
     Column(modifier = Modifier
         .fillMaxSize()
         .padding(16.dp)) {
 
         Text(
-            text = "Create a new username and password",
+            text = "Create a new profile",
             style = MaterialTheme.typography.headlineSmall
         )
 
@@ -36,6 +39,36 @@ fun SignUpScreen(onSignUpComplete: () -> Unit) {
             value = username,
             onValueChange = { username = it },
             label = { Text("Username") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        TextField(
+            value = firstName,
+            onValueChange = { firstName = it },
+            label = { Text("First Name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        TextField(
+            value = role,
+            onValueChange = { role = it },
+            label = { Text("Role (e.g. Developer)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        TextField(
+            value = timezone,
+            onValueChange = { timezone = it },
+            label = { Text("Timezone (e.g. MST)") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -64,18 +97,31 @@ fun SignUpScreen(onSignUpComplete: () -> Unit) {
 
         Button(
             onClick = {
-                if (username.isNotBlank() && password == confirm && password.isNotBlank()) {
+                if (username.isNotBlank() &&
+                    password == confirm &&
+                    password.isNotBlank() &&
+                    firstName.isNotBlank() &&
+                    role.isNotBlank() &&
+                    timezone.isNotBlank()
+                ) {
                     coroutineScope.launch {
-                        DataStoreManager.saveCredential(context, username, password)
-                        onSignUpComplete()  
+                        DataStoreManager.saveCredential(
+                            context,
+                            username,
+                            password,
+                            firstName,
+                            role,
+                            timezone
+                        )
+                        onSignUpComplete()
                     }
                 } else {
-                    error = "Username and Passwords do not match or are empty."
+                    error = "All fields are required and passwords must match."
                 }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Set Password")
+            Text("Set Profile")
         }
 
         if (error.isNotEmpty()) {

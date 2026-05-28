@@ -57,20 +57,49 @@ data class KnowledgeTriple(val subject: String, val predicate: String, val obj: 
 
 fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName: String = "Knowledge_graph.csv") {
     val file = File(context.getExternalFilesDir(null), fileName)
-    val existingLines = if (file.exists()) file.readLines().toMutableSet() else mutableSetOf()
+    val updatablePredicates = setOf("first_name", "role", "timezone", "last_seen_at", "located_at")
+    
+    val allTriples = mutableListOf<KnowledgeTriple>()
+    
+    if (file.exists()) {
+        val lines = file.readLines()
+        if (lines.isNotEmpty()) {
+            lines.drop(1).forEach { line ->
+                val parts = Regex("""(?:[^,"']+|"(?:\\.|[^"])*")+""").findAll(line)
+                    .map { it.value.trim('"') }
+                    .toList()
+                if (parts.size >= 3) {
+                    allTriples.add(KnowledgeTriple(parts[0], parts[1], parts[2]))
+                }
+            }
+        }
+    }
 
-    val newLines = triples.map { "\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\"" }
-        .filterNot { existingLines.contains(it) }
+    triples.forEach { newTriple ->
+        if (newTriple.predicate in updatablePredicates) {
+            val index = allTriples.indexOfFirst { 
+                it.subject == newTriple.subject && it.predicate == newTriple.predicate 
+            }
+            if (index != -1) {
+                allTriples[index] = newTriple
+            } else {
+                allTriples.add(newTriple)
+            }
+        } else {
+            if (!allTriples.contains(newTriple)) {
+                allTriples.add(newTriple)
+            }
+        }
+    }
 
-    if (newLines.isEmpty()) return
-
-    val needsHeader = existingLines.isEmpty()
-    file.appendText(buildString {
-        if (needsHeader) append("Subject,Predicate,Object\n")
-        newLines.forEach { append("$it\n") }
+    file.writeText(buildString {
+        append("Subject,Predicate,Object\n")
+        allTriples.forEach { 
+            append("\"${it.subject}\",\"${it.predicate}\",\"${it.obj}\"\n")
+        }
     })
 
-    Log.d("CSV", "Appended ${newLines.size} new triples to: ${file.absolutePath}")
+    Log.d("CSV", "Saved ${allTriples.size} triples (updated/appended) to: ${file.absolutePath}")
 }
 
 
@@ -153,9 +182,9 @@ fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
             val intervalIso = "$startIso/$endIso"
 
             if (!title.isNullOrBlank()) {
-                triples.add(KnowledgeTriple(title, "at", intervalIso))
+                triples.add(KnowledgeTriple(title, "scheduled_at", intervalIso))
                 if (!location.isNullOrBlank()) {
-                    triples.add(KnowledgeTriple(title, "location", location))
+                    triples.add(KnowledgeTriple(title, "event_location", location))
                 }
             }
         }
@@ -204,6 +233,12 @@ fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
         calendarTriples.clear()
         calendarTriples.addAll(fromCalendar)
 
+        val userProfile = DataStoreManager.getUserProfile(context)
+        val profileTriples = mutableListOf<KnowledgeTriple>()
+        userProfile.firstName?.let { profileTriples.add(KnowledgeTriple("user", "first_name", it)) }
+        userProfile.role?.let { profileTriples.add(KnowledgeTriple("user", "role", it)) }
+        userProfile.timezone?.let { profileTriples.add(KnowledgeTriple("user", "timezone", it)) }
+
         val distinctTriples = fromCalendar.distinctBy { it.subject }
        
         Log.d ("DateDebug", "LastDate: ${lastUpdateDate.value}, Today: $today")
@@ -211,6 +246,7 @@ fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
             cacheTriples.clear()
             cacheTriples.addAll(calendarTriples)
             knowledgeGraph.addAll(fromCalendar)
+            knowledgeGraph.addAll(profileTriples)
             knowledgeGraph.addAll(locationViewModel.locationTriples)
             saveTriplesToCSV(context, knowledgeGraph)
 
@@ -218,6 +254,7 @@ fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
             lastUpdateDate.value = today
         } else {
             knowledgeGraph.addAll(cacheTriples)
+            knowledgeGraph.addAll(profileTriples)
             knowledgeGraph.addAll(locationViewModel.locationTriples)
         }
     }
