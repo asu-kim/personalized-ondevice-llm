@@ -50,37 +50,27 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
                                 val address = addresses[0].getAddressLine(0)
                                 val dateTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-                                if (address != lastAddress) {
-                                    // New location, start a new stay
-                                    lastAddress = address
-                                    currentStayId = "stay_${System.currentTimeMillis() / 1000}"
-                                    
-                                    val newTriples = listOf(
-                                        KnowledgeTriple(currentStayId!!, "is_type", "location_stay"),
-                                        KnowledgeTriple(currentStayId!!, "at_location", address),
-                                        KnowledgeTriple(currentStayId!!, "start_time", dateTime),
-                                        KnowledgeTriple(currentStayId!!, "end_time", dateTime),
-                                        KnowledgeTriple("user", "stayed_at", currentStayId!!)
-                                    )
-                                    _locationTriples.clear()
-                                    _locationTriples.addAll(newTriples)
-                                    saveTriplesToCSV(context, newTriples)
+                                val checkInTriples = listOf(
+                                    KnowledgeTriple("user", "located_at", address),
+                                    KnowledgeTriple(address, "last_seen_at", dateTime)
+                                )
 
+                                _locationTriples.clear()
+                                _locationTriples.addAll(checkInTriples)
+                                saveTriplesToCSV(context, checkInTriples)
+
+                                if (address != lastAddress) {
+                                    lastAddress = address
                                     val sharedPrefs = context.getSharedPreferences("location_prefs", Context.MODE_PRIVATE)
                                     sharedPrefs.edit {
                                         putString("last_location", address)
-                                        putString("current_stay_id", currentStayId)
                                     }
-                                } else if (currentStayId != null) {
-                                    // Same location, just update end_time
-                                    val updatedTriple = KnowledgeTriple(currentStayId!!, "end_time", dateTime)
-                                    saveTriplesToCSV(context, listOf(updatedTriple))
                                 }
                             }
                         }
                     }
                 }
-                delay(30_000) // Increased delay slightly to reduce overhead
+                delay(30_000)
             }
         }
     }

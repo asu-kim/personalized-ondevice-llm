@@ -57,7 +57,7 @@ data class KnowledgeTriple(val subject: String, val predicate: String, val obj: 
 
 fun saveTriplesToCSV(context: Context, triples: List<KnowledgeTriple>, fileName: String = "Knowledge_graph.csv") {
     val file = File(context.getExternalFilesDir(null), fileName)
-    val updatablePredicates = setOf("first_name", "role", "timezone", "end_time", "last_seen_at")
+    val updatablePredicates = setOf("first_name", "role", "timezone", "last_seen_at", "located_at")
     
     val allTriples = mutableListOf<KnowledgeTriple>()
     
