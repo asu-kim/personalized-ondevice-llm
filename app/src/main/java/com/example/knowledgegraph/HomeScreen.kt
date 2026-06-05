@@ -14,6 +14,7 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 @Composable
 fun HomeScreen(name: String, navController: NavController) {
@@ -23,6 +24,7 @@ fun HomeScreen(name: String, navController: NavController) {
     val embeddingModel = remember { EmbeddingModel(context) }
 
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -104,6 +106,59 @@ fun HomeScreen(name: String, navController: NavController) {
             }
         ) {
             Text("Regenerate Embeddings Now")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = {
+                navController.navigate("csv_viewer")
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("View Knowledge Graph")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = { showDeleteDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) {
+            Text("Delete Knowledge Graph")
+        }
+
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Confirm Deletion") },
+                text = { Text("Are you sure you want to delete the Knowledge Graph files (CSV and Vector)? This cannot be undone.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            val csvFile = File(context.getExternalFilesDir(null), "Knowledge_graph.csv")
+                            val vecFile = File(context.getExternalFilesDir(null), "Knowledge_graph.vec")
+                            val csvDeleted = if (csvFile.exists()) csvFile.delete() else true
+                            val vecDeleted = if (vecFile.exists()) vecFile.delete() else true
+                            
+                            statusMessage = if (csvDeleted && vecDeleted) {
+                                "Files deleted successfully."
+                            } else {
+                                "Failed to delete files."
+                            }
+                        }
+                    ) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))

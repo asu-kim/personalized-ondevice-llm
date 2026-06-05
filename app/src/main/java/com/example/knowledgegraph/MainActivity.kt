@@ -70,6 +70,9 @@ class MainActivity : ComponentActivity() {
 
                         HomeScreen(name = userName, navController = navController)
                     }
+                    composable("csv_viewer") {
+                        CSVViewerScreen(navController = navController)
+                    }
                 }
             }
         }
