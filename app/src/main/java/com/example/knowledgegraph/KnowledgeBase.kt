@@ -5,36 +5,22 @@ import android.app.Activity
 import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Geocoder
 import android.provider.CalendarContract
 import android.util.Log
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.drawText
 import java.util.*
 import java.io.File
-import java.io.FileOutputStream
-import android.os.Environment
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -196,18 +182,12 @@ fun getCalendarTriples(context: Context): List<KnowledgeTriple> {
 
 @Composable
 fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
-    var subject by remember { mutableStateOf("") }
-    var predicate by remember { mutableStateOf("") }
-    var obj by remember { mutableStateOf("") }
-    val focusManager = LocalFocusManager.current
-    val lastUpdateDate  = remember {mutableStateOf<String?>(null)}
+    val lastUpdateDate = remember { mutableStateOf<String?>(null) }
     val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     val knowledgeGraph = remember { mutableStateListOf<KnowledgeTriple>() }
     val context = LocalContext.current
     val calendarTriples = remember { mutableStateListOf<KnowledgeTriple>() }
-    val cacheTriples = remember { mutableStateListOf<KnowledgeTriple>()}
-    val locationViewModel: LocationViewModel = viewModel()
-
+    val cacheTriples = remember { mutableStateListOf<KnowledgeTriple>() }
 
     LaunchedEffect(Unit) {
         val permissionGranted = ContextCompat.checkSelfPermission(
@@ -229,7 +209,9 @@ fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
      
         logAvailableCalendars(context)
 
-        val fromCalendar = getCalendarTriples(context)
+        val fromCalendar = withContext(Dispatchers.IO) {
+            getCalendarTriples(context)
+        }
         calendarTriples.clear()
         calendarTriples.addAll(fromCalendar)
 
@@ -239,8 +221,6 @@ fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
         userProfile.role?.let { profileTriples.add(KnowledgeTriple("user", "role", it)) }
         userProfile.timezone?.let { profileTriples.add(KnowledgeTriple("user", "timezone", it)) }
 
-        val distinctTriples = fromCalendar.distinctBy { it.subject }
-       
         Log.d ("DateDebug", "LastDate: ${lastUpdateDate.value}, Today: $today")
         if (lastUpdateDate.value != today) {
             cacheTriples.clear()
@@ -248,7 +228,9 @@ fun KnowledgeBase(locationViewModel: LocationViewModel = viewModel()) {
             knowledgeGraph.addAll(fromCalendar)
             knowledgeGraph.addAll(profileTriples)
             knowledgeGraph.addAll(locationViewModel.locationTriples)
-            saveTriplesToCSV(context, knowledgeGraph)
+            withContext(Dispatchers.IO) {
+                saveTriplesToCSV(context, knowledgeGraph)
+            }
 
 
             lastUpdateDate.value = today
